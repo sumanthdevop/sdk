@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential autoconf automake libtool \
+            make g++ build-essential cmake autoconf automake libtool \
             curl wget unzip zip tar pkg-config \
             nasm yasm swig python3
 
