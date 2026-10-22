@@ -1,0 +1,64 @@
+
+name: Build MEGA Android SDK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout MEGA SDK
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential autoconf automake libtool \
+            curl wget unzip zip tar pkg-config \
+            nasm yasm swig python3
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK and CMake
+        run: |
+          sdkmanager "ndk;27.1.12297006" "cmake;3.22.1"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> "$GITHUB_ENV"
+          echo "NDK_ROOT=$ANDROID_HOME/ndk/27.1.12297006" >> "$GITHUB_ENV"
+
+      - name: Set up vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Build Android library
+        run: |
+          cd examples/android/ExampleApp/app/src/main/jni
+          BUILD_ARCHS=arm64-v8a bash ./cmake.sh
+
+      - name: Upload generated SDK files
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mega-android-arm64
+          path: |
+            examples/android/ExampleApp/app/src/main/jniLibs/arm64-v8a/libmega.so
+            examples/android/ExampleApp/app/src/main/java/nz/mega/sdk/*.java
+          if-no-files-found: error
+          retention-days: 7
